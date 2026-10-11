@@ -1,0 +1,10 @@
+{
+  "name": "baseline-tennis",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8000 --bind 0.0.0.0",
+    "test": "node --test tennis/tests/*.test.js",
+    "check": "node --check tennis/main.js && node --check tennis/game.js && node --check tennis/scene.js && node --check tennis/controls.js"
+  }
+}

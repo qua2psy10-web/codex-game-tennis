@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#14263e"><meta name="description" content="自動移動で打球に集中。PC・スマホで遊べる3Dテニスゲーム。"><title>BASELINE — Tennis</title><link rel="icon" href="tennis/assets/ball.svg" type="image/svg+xml"><link rel="stylesheet" href="tennis/style.css"></head>
+<body>
+<header class="topbar"><a class="brand" href="./" aria-label="BASELINE ホーム">BASELINE<span class="brand-dot"></span></a><nav aria-label="ゲームメニュー"><button id="help-button">操作方法</button><button id="pause-button" hidden>一時停止</button></nav></header>
+<main>
+<section id="selection" class="selection">
+<div class="selection-heading"><h1>コートに立とう。</h1><p>移動は任せても、自分で動いても。<br>あなたの選手で、一球に集中しよう。</p></div>
+<div class="players" role="group" aria-label="プレーヤー選択">
+<button class="player-option selected" data-gender="male" aria-pressed="true"><img src="tennis/assets/male-player.png" alt="白とネイビーのウェアを着た男子プレーヤー"><span class="player-caption"><span>男子</span><span class="selection-mark">選択中</span></span></button>
+<button class="player-option" data-gender="female" aria-pressed="false"><img src="tennis/assets/female-player.png" alt="コーラルピンクと白のウェアを着た女子プレーヤー"><span class="player-caption"><span>女子</span><span class="selection-mark">選択する</span></span></button>
+</div>
+<aside class="match-preview"><div class="rival-preview"><img id="rival-photo" src="tennis/assets/male-rival.png" alt="対戦相手"><div><span class="subtle">対戦相手</span><strong id="rival-description">ワイルドなパワープレーヤー</strong><span class="subtle">コンピューター · やさしい</span></div></div><fieldset class="movement-choice"><legend>選手の移動</legend><label><input type="radio" name="movement" value="auto" checked><span>自動</span></label><label><input type="radio" name="movement" value="manual"><span>手動</span></label><p id="movement-description">移動はおまかせ。打つ操作に集中。</p></fieldset><button id="start-button" class="primary">試合を始める <span aria-hidden="true">↗</span></button><p class="match-rules">1セットマッチ · ハードコート<br>6ゲーム先取 / 6–6でタイブレーク</p></aside>
+<footer class="selection-footer"><span>SPACE で打つ。← → でコースを狙う。</span><span>PC / スマホでプレイ</span></footer>
+</section>
+<section id="match" class="match" hidden aria-label="テニスコート">
+<div id="court"></div>
+<div class="scoreboard"><table aria-label="スコア"><thead><tr><th></th><th>GAME</th><th id="point-heading">POINT</th></tr></thead><tbody><tr><th><span id="serve-you" class="serve-dot"></span>YOU</th><td id="games-you">0</td><td id="points-you">0</td></tr><tr><th><span id="serve-rival" class="serve-dot"></span>RIVAL</th><td id="games-rival">0</td><td id="points-rival">0</td></tr></tbody></table><div id="score-detail">1セットマッチ</div></div>
+<div id="aim-label" class="aim-label">狙い：センター · 深め</div><div class="court-caption">1 SET · HARD COURT</div>
+<div class="instruction" aria-live="polite"><strong id="status">SPACE でトス</strong><div id="timing-meter" class="timing-meter" hidden><span class="sweet-zone"></span><span id="timing-cursor"></span></div><span id="hint">← → コースを選ぶ</span></div>
+<div id="feedback" class="feedback" aria-live="polite"></div>
+<div class="mobile-controls" aria-label="タッチ操作">
+<div class="movement-pad"><div id="movement-stick" class="movement-stick" role="group" aria-label="移動スティック。上下左右にドラッグ"><span class="stick-axis horizontal"></span><span class="stick-axis vertical"></span><span class="stick-thumb"></span></div><span id="stick-caption">自動移動</span></div>
+<div class="shot-pad"><div class="touch-aim" role="group" aria-label="打球コース"><button data-input="left" aria-label="左を狙う" aria-pressed="false">左</button><button data-input="center" aria-label="中央を狙う" aria-pressed="true">中</button><button data-input="right" aria-label="右を狙う" aria-pressed="false">右</button><button data-input="depth" id="touch-depth" aria-label="浅い球に切り替える">深め</button></div><button data-input="hit" class="touch-hit">打つ / サーブ</button></div></div>
+</section>
+</main>
+<dialog id="help-dialog"><button class="close-dialog" aria-label="操作説明を閉じる">×</button><h2>一球に、集中。</h2><p>自動移動なら、打球に集中。<br>手動移動なら、自分でボールを追いかけよう。</p><dl class="controls-list"><div><dt><kbd>SPACE</kbd></dt><dd>サーブ：1回目でトス、2回目で打つ<br>ラリー：合図に合わせて打つ</dd></div><div><dt><kbd>←</kbd><kbd>→</kbd></dt><dd>左右のコースを狙う</dd></div><div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>深い球 / 浅い球を選ぶ</dd></div><div><dt><kbd>WASD</kbd></dt><dd>手動モードで上下左右に移動<br>W：前 / S：後ろ / A：左 / D：右</dd></div><div><dt><kbd>ESC</kbd></dt><dd>一時停止 / 再開</dd></div></dl><p class="touch-help">スマホ：左のスティックで移動、右のボタンで打球。左・中・右でコース、深め・浅めで奥行きを選べます。移動中も同時に打てます。サーブを打つまではサーバーの移動を固定します。</p><p class="rules-help">得点は 0 → 15 → 30 → 40。デュースからは2点差でゲーム獲得。6ゲーム以上かつ2ゲーム差で勝利。6–6は7点以上・2点差のタイブレーク。サーブはサービスボックス内へ。2回のフォルトで失点します。</p><button class="primary close-help">わかった、プレイしよう</button></dialog>
+<dialog id="pause-dialog"><h2>ひと息つこう。</h2><p>試合は一時停止中です。</p><fieldset class="movement-choice pause-movement"><legend>選手の移動</legend><label><input type="radio" name="pause-movement" value="auto" checked><span>自動</span></label><label><input type="radio" name="pause-movement" value="manual"><span>手動</span></label></fieldset><button id="resume-button" class="primary">試合に戻る</button><button id="quit-button" class="secondary">選手選択へ戻る</button></dialog>
+<dialog id="result-dialog"><span class="result-icon">✦</span><h2 id="result-title">YOU WIN</h2><p id="result-score"></p><p id="result-message"></p><button id="rematch-button" class="primary">もう一度対戦</button><button id="change-player-button" class="secondary">選手を選び直す</button></dialog>
+<dialog id="quit-dialog"><h2>試合を終了しますか？</h2><p>進行中のスコアはリセットされます。</p><button id="cancel-quit" class="primary">試合を続ける</button><button id="confirm-quit" class="secondary">終了して選手選択へ</button></dialog>
+<script type="module" src="tennis/main.js"></script>
+</body></html>
