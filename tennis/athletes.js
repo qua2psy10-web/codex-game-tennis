@@ -60,8 +60,15 @@ export function animateAthlete(model, { time = 0, moving = 0, swing = 0, serving
   const stride = moving ? Math.sin(time * 12) : 0;
   const armSwing = stride * .4 * (1 - strength);
   const elbowBend = moving ? .7 : .3;
+  const forehand = swing > 0 && !serving && !serveStroke;
+  const lift = forehand ? Math.min(swing / .2, 1) : 0;
+  const sweep = 1 - swing * 1.3;
   if (model.userData.fallback) {
     model.userData.arms[0].rotation.x = serving ? 2.1 : .15 - armSwing + strength * (serveStroke ? 2.15 : 1.3);
+    if (forehand) {
+      model.userData.arms[0].rotation.x = .15 + lift * (Math.PI / 2 - .15);
+    }
+    model.userData.arms[0].rotation.y = forehand ? sweep * lift : 0;
     model.userData.arms[1].rotation.x = celebrating ? 2.4 : serving ? 2.65 : .1 + armSwing;
     model.userData.head.rotation.x = disappointed ? -.2 : 0;
     model.userData.hips.rotation.x = moving ? -.12 : 0;
@@ -88,9 +95,11 @@ export function animateAthlete(model, { time = 0, moving = 0, swing = 0, serving
   pose('Spine', strength * .32, axisY);
   pose('Spine', moving ? -.14 : Math.sin(time * 2) * .01);
   pose('Head', disappointed ? -.18 : moving ? .06 : 0);
-  pose('UpperArm_R', serving ? 2.1 : .10 - armSwing + strength * (serveStroke ? 2.2 : 1.05));
-  pose('UpperArm_R', serving ? -.22 : serveStroke ? -.16 : -.16 + strength * .65, axisZ);
-  pose('Forearm_R', serving ? .65 : elbowBend + stride * .08 + strength * (serveStroke ? .15 : .45));
+  pose('UpperArm_R', forehand ? .1 + lift * (Math.PI / 2 - .1) : serving ? 2.1 : .10 - armSwing + strength * (serveStroke ? 2.2 : 1.05));
+  pose('UpperArm_R', serving ? -.22 : -.16 * (1 - lift), axisZ);
+  // Once lifted, sweep around the vertical axis rather than raising the arm.
+  if (forehand) pose('UpperArm_R', sweep * lift, axisY);
+  pose('Forearm_R', forehand ? elbowBend * (1 - lift) + .25 * lift : serving ? .65 : elbowBend + stride * .08 + strength * (serveStroke ? .15 : .45));
   pose('Hand_R', strength * -.12);
   pose('UpperArm_L', celebrating ? 2.2 : serving ? 2.65 : .10 + armSwing);
   pose('UpperArm_L', celebrating ? .2 : .1, axisZ);

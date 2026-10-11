@@ -136,3 +136,21 @@ for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']
     }
   });
 }
+
+for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']) {
+  test(`${key}: forehand sweeps horizontally before returning to idle`, () => {
+    const model = skeleton(key);
+    for (const yaw of [0, Math.PI]) {
+      model.rotation.y = yaw;
+      const hands = [1, .75, .5, .25].map(swing => {
+        animateAthlete(model, { swing });
+        return position(model, 'Hand_R');
+      });
+      assert.ok(Math.max(...hands.map(p => p.y)) - Math.min(...hands.map(p => p.y)) < .025, 'hand stays at a consistent height through the stroke');
+      assert.ok(Math.abs(hands[0].x - hands[3].x) > .35, 'hand travels across the body');
+      assert.ok(hands.every(p => p.z < -.2), 'stroke stays in front of the body');
+      animateAthlete(model);
+      assert.ok(position(model, 'Hand_R').y < hands[0].y - .3, 'arm returns to idle');
+    }
+  });
+}
