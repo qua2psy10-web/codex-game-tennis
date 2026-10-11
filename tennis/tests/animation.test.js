@@ -82,7 +82,7 @@ for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']
       }
     }
     assert.ok(samples.length > 100, 'actual lower-body vertices were tested');
-    for (const pose of [{ serving: true }, { celebrating: true }, { swing: 1 }, { serveStroke: true, swing: 1 }]) {
+    for (const pose of [{ serving: true }, { swing: 1 }, { serveStroke: true, swing: 1 }]) {
       animateAthlete(model, pose); model.updateMatrixWorld(true);
       for (const { mesh, index, rest } of samples) {
         const point = new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.position, index);
@@ -111,5 +111,28 @@ for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']
     assert.ok(hands[0][0] > hands[1][0], 'right arm swings with the opposite leg');
     assert.ok(hands[0][1] < hands[1][1], 'left arm swings opposite to the right arm');
     animateAthlete(model); assert.ok(position(model, 'Head').distanceTo(idleHead) < 1e-6, 'stopping resets the running posture');
+  });
+}
+
+for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']) {
+  test(`${key}: celebration spreads both legs, levels the feet and resets on idle`, () => {
+    const model = skeleton(key);
+    for (const yaw of [0, Math.PI]) {
+      model.rotation.y = yaw;
+      animateAthlete(model);
+      const idle = ['R', 'L'].map(side => position(model, `Foot_${side}`));
+      const footRotations = ['R', 'L'].map(side => model.userData.bones.get(`Foot_${side}`).object.getWorldQuaternion(new THREE.Quaternion()));
+      animateAthlete(model, { celebrating: true, moving: 1, time: Math.PI / 24 });
+      const feet = ['R', 'L'].map(side => position(model, `Foot_${side}`));
+      assert.ok(feet[0].x < idle[0].x - .12, 'right leg opens outward');
+      assert.ok(feet[1].x > idle[1].x + .12, 'left leg opens outward');
+      assert.ok(Math.abs(feet[0].y - feet[1].y) < .001, 'both feet stay at the same height');
+      for (const [i, side] of ['R', 'L'].entries()) {
+        const orientation = model.userData.bones.get(`Foot_${side}`).object.getWorldQuaternion(new THREE.Quaternion());
+        assert.ok(orientation.angleTo(footRotations[i]) < .001, 'sole remains level');
+      }
+      animateAthlete(model);
+      for (const [i, side] of ['R', 'L'].entries()) assert.ok(position(model, `Foot_${side}`).distanceTo(idle[i]) < 1e-6, 'idle resets the stance');
+    }
   });
 }

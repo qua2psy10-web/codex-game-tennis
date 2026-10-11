@@ -54,6 +54,8 @@ export async function loadAthlete(key) {
 }
 
 export function animateAthlete(model, { time = 0, moving = 0, swing = 0, serving = false, serveStroke = false, celebrating = false, disappointed = false } = {}) {
+  // A point-winning stance takes priority over the last running frame.
+  if (celebrating) moving = 0;
   const strength = Math.sin(swing * Math.PI / 2);
   const stride = moving ? Math.sin(time * 12) : 0;
   const armSwing = stride * .4 * (1 - strength);
@@ -66,6 +68,7 @@ export function animateAthlete(model, { time = 0, moving = 0, swing = 0, serving
     for (const leg of model.userData.legs) {
       const step = stride * leg.userData.side;
       leg.rotation.x = step * .45 + (moving ? .12 : 0);
+      leg.rotation.z = celebrating ? leg.userData.side * .22 : 0;
       leg.userData.knee.rotation.x = moving ? -.18 - Math.max(0, -step) * .85 : 0;
     }
     return;
@@ -98,6 +101,12 @@ export function animateAthlete(model, { time = 0, moving = 0, swing = 0, serving
     // The knee flexes backward, opposite to the elbow's forward flexion.
     pose(`Calf_${side}`, moving ? -.18 - Math.max(0, -step) * .85 : 0);
     pose(`Foot_${side}`, Math.max(0, step) * .12);
+    if (celebrating) {
+      const spread = side === 'R' ? -.22 : .22;
+      pose(`Thigh_${side}`, spread, axisZ);
+      // Keep the soles level while the legs spread out from the hips.
+      pose(`Foot_${side}`, -spread, axisZ);
+    }
   }
 }
 
