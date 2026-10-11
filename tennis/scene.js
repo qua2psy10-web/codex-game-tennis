@@ -137,6 +137,7 @@ export class CourtScene {
     }
   }
   handleEvent(event, time) {
+    if (event.type === 'hit' && this.people[event.player]) this.people[event.player].userData.serveStroke = !!event.serve;
     if (['ready', 'point', 'finished', 'fault'].includes(event.type)) {
       this.trailPoints = []; this.trailTime = -1;
       this.effects.forEach(effect => { effect.object.visible = false; effect.born = -10; });
@@ -173,6 +174,7 @@ export class CourtScene {
       const model = this.people[i], state = game.players[i];
       model.position.set(state.x, 0, state.z);
       animateAthlete(model, { moving: state.moving, swing: state.swing, time: game.elapsed,
+        serveStroke: model.userData.serveStroke,
         serving: game.phase === 'serve-toss' && game.score.server === i,
         celebrating: ['point-over', 'finished'].includes(game.phase) && game.pointWinner === i,
         disappointed: ['point-over', 'finished'].includes(game.phase) && game.pointWinner !== i });

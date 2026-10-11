@@ -244,8 +244,8 @@ def build(key, female, rival):
     for vertex in continuous.data.vertices:
         x,y,z = vertex.co
         side = 'R' if x < 0 else 'L'
-        if z > 1.52: weight(vertex.index, 'Head', 1)
-        elif abs(x) > .185 and z > .77:
+        if z > 1.52 and abs(x) < .14: weight(vertex.index, 'Head', 1)
+        elif abs(x) > (.14 if z > 1.09 else .24) and z > .77:
             if z > 1.10: blend(vertex.index,z,1.17,.07,f'UpperArm_{side}',f'Forearm_{side}')
             else: blend(vertex.index,z,.925,.045,f'Forearm_{side}',f'Hand_{side}')
         elif z < 1.09:

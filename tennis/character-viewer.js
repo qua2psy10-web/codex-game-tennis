@@ -47,8 +47,9 @@ export class CharacterViewer {
     const width = this.container.clientWidth, height = this.container.clientHeight;
     if (!width || !height) return;
     this.renderer.setSize(width, height, false); this.camera.aspect = width / height;
-    const focus = this.zoom > 1.3 ? 1.5 : 1;
-    this.camera.position.set(0, focus + .08, -3.45 / this.zoom);
+    const overhead = ['serve', 'celebrate'].includes(this.pose);
+    const focus = this.zoom > 1.3 ? 1.5 : overhead ? 1.35 : 1;
+    this.camera.position.set(0, focus + .08, -(overhead ? 4.7 : 3.45) / this.zoom);
     this.camera.lookAt(0, focus, 0); this.camera.updateProjectionMatrix();
   }
   async show(key) {
@@ -66,7 +67,7 @@ export class CharacterViewer {
     this.active = false; ++this.request; cancelAnimationFrame(this.frameId);
     if (this.model) { this.scene.remove(this.model); disposeAthlete(this.model); this.model = null; }
   }
-  setPose(pose) { this.pose = pose; this.started = performance.now(); }
+  setPose(pose) { this.pose = pose; this.started = performance.now(); this.resize(); }
   setZoom(zoom) { this.zoom = zoom; this.resize(); }
   rotate(direction) { this.angle += direction * Math.PI / 4; }
 }
