@@ -19,6 +19,9 @@ for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']
     jointNames.forEach(name => assert.ok(names.includes(name), `Missing ${name}`));
     assert.equal(doc.accessors[skin.inverseBindMatrices].count, skin.joints.length);
     for (const mesh of doc.meshes) for (const primitive of mesh.primitives) {
+      const colors = doc.accessors[primitive.attributes.COLOR_0];
+      assert.ok(colors, 'skin and fabric surface detail is embedded in the mesh');
+      assert.equal(colors.count, doc.accessors[primitive.attributes.POSITION].count);
       const weights = doc.accessors[primitive.attributes.WEIGHTS_0];
       const joints = doc.accessors[primitive.attributes.JOINTS_0];
       assert.ok(weights && joints); assert.equal(weights.count, joints.count);

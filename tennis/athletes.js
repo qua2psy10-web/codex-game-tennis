@@ -26,7 +26,7 @@ function fetchModel(url) {
 export async function loadAthlete(key) {
   const info = ATHLETES[key];
   if (!info) throw new RangeError('Unknown athlete');
-  const url = new URL(`./assets/models/${key}.glb?v=rig-2`, import.meta.url);
+  const url = new URL(`./assets/models/${key}.glb?v=anatomy-3`, import.meta.url);
   try {
     if (!files.has(key)) files.set(key, fetchModel(url).catch(error => { files.delete(key); throw error; }));
     const gltf = await loader.parseAsync((await files.get(key)).slice(0), new URL('./', url).href);

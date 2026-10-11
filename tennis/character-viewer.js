@@ -14,12 +14,12 @@ export class CharacterViewer {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.append(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '選手の3Dモデル。ドラッグで回転できます。');
-    this.scene.add(new THREE.HemisphereLight('#ffffff', '#84909c', 2.5));
-    const key = new THREE.DirectionalLight('#fff4e8', 3); key.position.set(-3, 5, -3); key.castShadow = true;
+    this.scene.add(new THREE.HemisphereLight('#ffffff', '#84909c', 1.25));
+    const key = new THREE.DirectionalLight('#fff4e8', 2.4); key.position.set(-3, 5, -3); key.castShadow = true;
     key.shadow.mapSize.set(512, 512); key.shadow.camera.left = -2; key.shadow.camera.right = 2;
     key.shadow.camera.top = 3; key.shadow.camera.bottom = -1; key.shadow.bias = -.001;
     this.scene.add(key);
-    const fill = new THREE.DirectionalLight('#c8dcff', 1.8); fill.position.set(3, 2, 2); this.scene.add(fill);
+    const fill = new THREE.DirectionalLight('#c8dcff', 1.0); fill.position.set(3, 2, 2); this.scene.add(fill);
     const platform = new THREE.Mesh(new THREE.CylinderGeometry(.82, .82, .055, 64), new THREE.MeshStandardMaterial({ color: '#d6dbe0', roughness: .9 }));
     platform.position.y = -.03; platform.receiveShadow = true; this.scene.add(platform);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container);

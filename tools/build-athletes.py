@@ -38,8 +38,8 @@ def bind(obj, material, bone):
     return obj
 
 
-def ellipsoid(name, position, scale, material, bone, segments=20):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=12, location=position)
+def ellipsoid(name, position, scale, material, bone, segments=32):
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=20, location=position)
     obj = bpy.context.object
     obj.name = name
     obj.scale = scale
@@ -50,10 +50,30 @@ def ellipsoid(name, position, scale, material, bone, segments=20):
 def rings(name, profile, material, bone, segments=32):
     # A profile contains height, x radius, y radius and y offset.
     vertices, faces = [], []
+    if name in ('Shirt', 'Shorts leg', 'Tennis skirt'):
+        dense = []
+        for a, b in zip(profile, profile[1:]):
+            count = max(1, math.ceil(abs(b[0]-a[0]) / .025))
+            for step in range(count):
+                t = step / count
+                dense.append(tuple(a[i]*(1-t)+b[i]*t for i in range(4)))
+        profile = dense + [profile[-1]]
+        segments = 48
     for z, rx, ry, cy in profile:
         for i in range(segments):
             t = 2 * math.pi * i / segments
-            vertices.append((rx * math.cos(t), cy + ry * math.sin(t), z))
+            x, y = rx * math.cos(t), cy + ry * math.sin(t)
+            if name == 'Face' and math.sin(t) > 0:
+                # Cheekbones, eye sockets and chin: sculpt the front of the head.
+                front = math.sin(t) ** 4
+                cheek = .008 * math.exp(-((abs(x)-.057)/.026)**2 - ((z-1.735)/.025)**2)
+                socket = .006 * math.exp(-((abs(x)-.041)/.023)**2 - ((z-1.763)/.014)**2)
+                y += front * (cheek - socket)
+            elif name in ('Shirt', 'Shorts leg', 'Tennis skirt'):
+                amplitude = .0025 if name == 'Shirt' else .0035
+                fold = amplitude * math.sin(t * (12 if name == 'Tennis skirt' else 7) + z * 11)
+                x += math.cos(t) * fold; y += math.sin(t) * fold
+            vertices.append((x, y, z))
     for row in range(len(profile) - 1):
         for i in range(segments):
             a = row * segments + i
@@ -117,7 +137,7 @@ def build(key, female, rival):
     bpy.ops.object.delete(use_global=False)
     parts = []
     rng = random.Random(17 + female * 10 + rival)
-    skin = mat('Skin', '#bd8c70' if rival else '#d7a382', .48)
+    skin = mat('Skin', '#b98669' if rival else '#cd9c7e', .57)
     skin_dark = mat('Skin detail', '#b18068', .55)
     shirt = mat('Technical fabric', '#653467' if female and rival else '#f3838c' if female else '#1d2636' if rival else '#f6f8fb', .88)
     lower = mat('Skirt or shorts', '#202839' if female and rival else '#f3f5fa' if female else '#172940', .9)
@@ -141,38 +161,42 @@ def build(key, female, rival):
         ellipsoid('Nostril', (sign*.013,.104,1.70), (.004,.004,.0025), skin_dark, 'Head',12)
         ellipsoid('Ear', (sign*.096,-.002,1.735), (.014,.021,.033), skin,'Head')
         ellipsoid('Ear inner', (sign*.105,.007,1.735), (.004,.013,.021), skin_dark,'Head',12)
-        ellipsoid('Eye', (sign*.042,.075,1.761), (.026,.013,.010), eye_white,'Head')
-        ellipsoid('Iris', (sign*.042,.087,1.761), (.008,.003,.008), iris,'Head',16)
-        ellipsoid('Pupil', (sign*.042,.090,1.761), (.0038,.0015,.0046), pupil,'Head',12)
-        tube('Upper eyelid', [(sign*(.018+i*.008),.086-math.sin(i*.6)*.002,1.762+math.sin(i/6*math.pi)*.009) for i in range(7)], .0025,skin_dark,'Head')
+        ellipsoid('Eye', (sign*.042,.077,1.761), (.019,.008,.0075), eye_white,'Head')
+        ellipsoid('Iris', (sign*.042,.084,1.761), (.0065,.0018,.0065), iris,'Head',16)
+        ellipsoid('Pupil', (sign*.042,.086,1.761), (.0028,.001,.0035), pupil,'Head',12)
+        tube('Upper eyelid', [(sign*(.023+i*.006),.083-math.sin(i*.6)*.002,1.761+math.sin(i/6*math.pi)*.007) for i in range(7)], .0015,skin_dark,'Head')
         tube('Eyebrow', [(sign*(.018+i*.008),.083,1.783+math.sin(i/6*math.pi)*.006) for i in range(7)], .0035,hair,'Head')
-    tube('Upper lip',[(-.025,.076,1.673),(-.011,.084,1.676),(0,.086,1.673),(.011,.084,1.676),(.025,.076,1.673)],.0035,lips,'Head')
-    tube('Lower lip',[(-.023,.078,1.671),(0,.086,1.668),(.023,.078,1.671)],.0038,lips,'Head')
+    tube('Upper lip',[(-.025,.076,1.673),(-.011,.084,1.676),(0,.086,1.673),(.011,.084,1.676),(.025,.076,1.673)],.0022,lips,'Head')
+    tube('Lower lip',[(-.023,.078,1.671),(0,.086,1.668),(.023,.078,1.671)],.0028,lips,'Head')
+    tube('Collar stitching',[(.094*math.cos(t*math.pi/16),.073*math.sin(t*math.pi/16),1.535) for t in range(33)],.0025,white if rival else accent,'Spine')
+    for sign in [-1, 1]:
+        tube('Lower eyelid', [(sign*(.023+i*.006),.082,1.761-math.sin(i/6*math.pi)*.0055) for i in range(7)],.0013,skin_dark,'Head')
+        ellipsoid('Eye catchlight',(sign*.041,.087,1.763),(.0014,.0006,.0014),eye_white,'Head',12)
     # Close-fitting crown plus individual swept locks or helical curls.
     rings('Hair cap',[(1.806,.096,.087,-.013),(1.845,.096,.086,-.015),(1.88,.075,.074,-.016),(1.901,.015,.015,-.016)],hair,'Head')
     if not female:
-        for i in range(27 if rival else 20):
-            x=(i%7-3)*.024
-            y=.065-(i//7)*.035
+        for i in range(126 if rival else 100):
+            x=(i%14-6.5)*.012
+            y=.064-(i//14)*.017
             lift = math.sqrt(max(0, 1-(x/.1)**2))*.047 + rng.random()*.009
             points=[(x+t*.023,y-t*.045,1.85+lift+math.sin(t*math.pi)*(.032 if rival else .022)) for t in [0,.25,.5,.75,1]]
-            tube('Swept hair',points,.009 if rival else .008,hair_light if i%5==0 else hair,'Head')
+            tube('Swept hair',points,.0033 if rival else .0028,hair_light if i%5==0 else hair,'Head')
         if rival:
             for side in [-1,1]:
                 tube('Beard jaw',[(side*.077,.052,1.699),(side*.066,.063,1.667),(side*.045,.061,1.642),(0,.052,1.633)],.010,hair,'Head')
                 tube('Moustache',[(side*.006,.094,1.689),(side*.018,.087,1.685),(side*.026,.08,1.681)],.004,hair,'Head')
     else:
-        for i in range(18):
-            x=(i%6-2.5)*.031
-            tube('Swept crown',[(x,.058,1.815),(x*.9,.015,1.88),(x*.7,-.077,1.856)],.006,hair_light if i%5==0 else hair,'Head')
-        for i in range(30 if rival else 14):
+        for i in range(72):
+            x=(i%12-5.5)*.015
+            tube('Swept crown',[(x,.058,1.815),(x*.9,.015,1.88),(x*.7,-.077,1.856)],.0028,hair_light if i%5==0 else hair,'Head')
+        for i in range(65 if rival else 40):
             angle = i * 2.4
             offset = math.cos(angle) * (.022 + (i % 3) * .009)
             if rival:
                 points=[(offset+.012*math.cos(t*.9+i),-.115-t*.003+math.sin(angle)*.03+.014*math.sin(t*.9+i),1.85-t*.014) for t in range(31)]
             else:
                 points=[(offset+math.sin(t*.25+i)*.007,-.11-t*.004+math.sin(angle)*.018,1.85-t*.013) for t in range(25)]
-            tube('Curly ponytail' if rival else 'Ponytail',points,.007,hair_light if i%5==0 else hair,'Head')
+            tube('Curly ponytail' if rival else 'Ponytail',points,.0038,hair_light if i%5==0 else hair,'Head')
         if rival:
             for sign in [-1, 1]:
                 tube('Temple curl',[(sign*(.077+math.sin(t*.8)*.005),.052+math.cos(t*.8)*.005,1.84-t*.009) for t in range(19)],.003,hair,'Head')
@@ -181,12 +205,12 @@ def build(key, female, rival):
         suffix = 'R' if sign==-1 else 'L'
         upper, fore, hand, thigh, calf, foot=[f'{n}_{suffix}' for n in ['UpperArm','Forearm','Hand','Thigh','Calf','Foot']]
         a=(sign*shoulder,0,1.47); e=(sign*(shoulder+.045),.005,1.17); w=(sign*(shoulder+.07),.035,.925)
-        ellipsoid('Shoulder',a,(.065 if female else .075,.075,.072),skin if female else shirt,upper)
-        segment('Upper arm',a,e,.064 if female else .078,skin,upper)
-        ellipsoid('Elbow',e,(.052,.055,.052),skin,fore)
-        segment('Forearm',e,w,.047 if female else .055,skin,fore,width=1.03)
+        ellipsoid('Shoulder',a,(.058 if female else .068,.075,.072),skin if female else shirt,upper)
+        segment('Upper arm',a,e,.049 if female else .061,skin,upper)
+        ellipsoid('Elbow',e,(.043,.045,.046),skin,fore)
+        segment('Forearm',e,w,.039 if female else .047,skin,fore,width=1.03)
         if not female:
-            segment('Short sleeve',a,(sign*(shoulder+.022),0,1.355),.086,shirt,upper)
+            segment('Short sleeve',a,(sign*(shoulder+.022),0,1.355),.077,shirt,upper)
         segment('Wristband',(w[0],w[1],.97),(w[0],w[1],.91),.047,lower if rival else white,fore)
         ellipsoid('Palm',(w[0],.038,.869),(.041,.022,.052),skin,hand)
         for finger in range(4):
@@ -210,12 +234,12 @@ def build(key, female, rival):
         rings('Shorts waist',[(.94,.19,.124,0),(1.045,.193,.124,0)],lower,'Hips')
     if female:
         profile=[]
-        for z,r in [(1.06,.178),(.97,.188),(.86,.216),(.80,.234)]:
+        for z,r in [(1.06,.178),(1.03,.184),(1.00,.212),(.97,.221),(.86,.244),(.80,.255)]:
             profile.append((z,r,r*.67,0))
         rings('Tennis skirt',profile,lower,'Hips')
         for i in range(12):
             angle=i*2*math.pi/12
-            tube('Skirt pleat',[(r*math.cos(angle),r*.67*math.sin(angle),z) for z,r in [(1.0,.185),(.90,.204),(.80,.235)]],.002,accent if i%4==0 else lower,'Hips')
+            tube('Skirt pleat',[(r*math.cos(angle),r*.67*math.sin(angle),z) for z,r in [(1.0,.213),(.90,.236),(.80,.256)]],.002,accent if i%4==0 else lower,'Hips')
     # Fuse skin into a continuous surface, then blend joint weights near elbows,
     # wrists, knees and ankles so animation does not expose gaps between parts.
     skin_parts = [obj for obj in parts if obj.data.materials[0] == skin]
@@ -226,11 +250,11 @@ def build(key, female, rival):
     continuous = bpy.context.object
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     remesh = continuous.modifiers.new('Continuous anatomy', 'REMESH')
-    remesh.mode = 'VOXEL'; remesh.voxel_size = .006; remesh.use_smooth_shade = True
+    remesh.mode = 'VOXEL'; remesh.voxel_size = .0035; remesh.use_smooth_shade = True
     bpy.ops.object.modifier_apply(modifier=remesh.name)
     smooth = continuous.modifiers.new('Surface relax', 'SMOOTH'); smooth.factor = .4; smooth.iterations = 3
     bpy.ops.object.modifier_apply(modifier=smooth.name)
-    reduce = continuous.modifiers.new('Game mesh budget', 'DECIMATE'); reduce.ratio = .35
+    reduce = continuous.modifiers.new('Game mesh budget', 'DECIMATE'); reduce.ratio = .18
     bpy.ops.object.modifier_apply(modifier=reduce.name)
     continuous.vertex_groups.clear()
     groups = {}
@@ -261,6 +285,22 @@ def build(key, female, rival):
     body=bpy.context.object
     body.name='AthleteMesh'
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+    detail = body.data.color_attributes.new(name='Surface detail', type='FLOAT_COLOR', domain='CORNER')
+    for polygon in body.data.polygons:
+        material = body.data.materials[polygon.material_index]
+        for loop_index in polygon.loop_indices:
+            v = body.data.vertices[body.data.loops[loop_index].vertex_index].co
+            grain = math.sin(v.x * 2100 + v.z * 1380) * math.sin(v.y * 1730 - v.z * 970)
+            shade = .97 + grain * .025
+            tint = (shade, shade, shade, 1)
+            if material == skin:
+                blush = .045 * math.exp(-((abs(v.x)-.055)/.03)**2 - ((v.z-1.735)/.022)**2) * max(0, v.y/.09)
+                tint = (shade, shade-blush, shade-blush*.8, 1)
+            detail.data[loop_index].color = tuple(tint[i] * material.diffuse_color[i] for i in range(3)) + (1,)
+    for material in body.data.materials:
+        vertex_color = material.node_tree.nodes.new('ShaderNodeVertexColor')
+        vertex_color.layer_name = 'Surface detail'
+        material.node_tree.links.new(vertex_color.outputs['Color'], material.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
     arm_data=bpy.data.armatures.new('AthleteSkeleton')
     rig=bpy.data.objects.new('AthleteRig',arm_data)
     bpy.context.collection.objects.link(rig)
