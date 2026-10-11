@@ -5,6 +5,7 @@ import { GameControls } from './controls.js';
 const $ = id => document.getElementById(id);
 let gender = 'male';
 let movementMode = 'auto';
+let pace = 'standard';
 let game = null;
 let scene = null;
 let currentScreen = 'selection';
@@ -13,15 +14,21 @@ let audio = null;
 const dialogs = [...document.querySelectorAll('dialog')];
 const touchMedia = matchMedia('(max-width: 750px), (pointer: coarse)');
 
-function playSound(type) {
+function playSound(type, quality = .8) {
   if (!audio || audio.state !== 'running') return;
-  const oscillator = audio.createOscillator(), gain = audio.createGain();
-  oscillator.connect(gain); gain.connect(audio.destination);
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(type === 'hit' ? 480 : type === 'bounce' ? 240 : 690, audio.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(120, audio.currentTime + .08);
-  gain.gain.setValueAtTime(.035, audio.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .1);
-  oscillator.start(); oscillator.stop(audio.currentTime + .11);
+  const now = audio.currentTime;
+  const notes = type === 'point' ? [523, 659, 784] : type === 'win' ? [523, 659, 784, 1047] : type === 'lose' ? [392, 330] : type === 'bounce' ? [150] : type === 'serve' ? [730] : [440 + quality * 220];
+  notes.forEach((frequency, i) => {
+    const oscillator = audio.createOscillator(), gain = audio.createGain();
+    oscillator.connect(gain); gain.connect(audio.destination);
+    oscillator.type = ['point', 'win', 'lose'].includes(type) ? 'sine' : 'triangle';
+    const start = now + i * .09, duration = notes.length > 1 ? .22 : type === 'bounce' ? .065 : .11;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    if (notes.length === 1) oscillator.frequency.exponentialRampToValueAtTime(frequency * .45, start + duration);
+    gain.gain.setValueAtTime(.0001, start); gain.gain.exponentialRampToValueAtTime(type === 'bounce' ? .035 : .055, start + .005);
+    gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+    oscillator.start(start); oscillator.stop(start + duration + .01);
+  });
 }
 function unlockSound() {
   try { audio ??= new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume().catch(() => {}); } catch { /* Audio is optional. */ }
@@ -39,7 +46,7 @@ function selectPlayer(value) {
 }
 function resetInput() {
   controls.reset();
-  if (game) { game.setMovement(0, 0); game.setAim(0); }
+  if (game) { game.clearShotBuffer(); game.setMovement(0, 0); game.setAim(0); }
 }
 function setMovementMode(mode) {
   movementMode = mode === 'manual' ? 'manual' : 'auto';
@@ -53,9 +60,17 @@ function setMovementMode(mode) {
 }
 function handleEvent(event) {
   if (event.type === 'point' || event.type === 'finished') resetInput();
-  if (event.type === 'hit' || event.type === 'bounce') playSound(event.type);
+  scene?.handleEvent(event, game?.elapsed ?? 0);
+  if (event.type === 'hit') playSound(event.serve ? 'serve' : 'hit', event.quality);
+  if (event.type === 'bounce') playSound('bounce');
+  if (event.type === 'point' && event.player === 0) playSound('point');
+  if (event.type === 'point' || event.type === 'hit') {
+    $('feedback').classList.remove('feedback-pop');
+    void $('feedback').offsetWidth;
+    $('feedback').classList.add('feedback-pop');
+  }
   if (event.type === 'finished') {
-    playSound('win');
+    playSound(event.player === 0 ? 'win' : 'lose');
     $('result-title').textContent = event.player === 0 ? 'YOU WIN' : 'RIVAL WINS';
     $('result-score').textContent = game.score.games.join(' – ');
     $('result-message').textContent = (event.player === 0 ? 'ナイスプレイ。コートはあなたのもの。' : '次の一球で、流れを変えよう。') + (game.score.finalTiebreak ? ` タイブレーク ${game.score.finalTiebreak.join('–')}` : '');
@@ -73,7 +88,7 @@ function startMatch() {
       $('pause-dialog').querySelector('p').textContent = '3D描画が停止しました。ページを再読み込みしてください。';
     });
     scene.setGender(gender); scene.resize();
-    game = new TennisGame({ onEvent: handleEvent, movementMode });
+    game = new TennisGame({ onEvent: handleEvent, movementMode, pace });
     updateUI();
     // Move focus away from the start button: Space now belongs to the game.
     document.activeElement?.blur();
@@ -190,6 +205,7 @@ document.addEventListener('keydown', event => {
 window.addEventListener('blur', () => { resetInput(); pauseGame(); });
 window.addEventListener('orientationchange', resetInput);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+document.querySelectorAll('input[name="pace"]').forEach(radio => radio.addEventListener('change', () => { pace = radio.value; game?.setPace(pace); }));
 function frame(time) {
   const dt = lastFrame ? Math.min((time - lastFrame) / 1000, .1) : .016; lastFrame = time;
   if (currentScreen === 'match' && game && scene) { game.update(dt); updateUI(); scene.render(game); }

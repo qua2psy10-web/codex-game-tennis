@@ -3,6 +3,8 @@ export const COURT = Object.freeze({ halfWidth: 4.115, halfLength: 11.885, servi
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const GRAVITY = 9.8;
 const BALL_RADIUS = 0.095;
+export const PACES = Object.freeze({ relaxed: .85, standard: 1, brisk: 1.12 });
+const SHOT_BUFFER = .12;
 
 export class MatchScore {
   constructor(firstServer = 0) {
@@ -56,13 +58,15 @@ export class MatchScore {
 }
 
 export class TennisGame {
-  constructor({ random = Math.random, onEvent = () => {}, movementMode = 'auto' } = {}) {
+  constructor({ random = Math.random, onEvent = () => {}, movementMode = 'auto', pace = 'standard' } = {}) {
     this.random = random;
     this.onEvent = onEvent;
     this.score = new MatchScore();
     this.players = [{ x: 1.7, z: 12.35, swing: 0, moving: 0 }, { x: -1.7, z: -10.5, swing: 0, moving: 0 }];
     this.aim = { x: 0, depth: 0 }; // 0 deep, 1 short. Future movement input belongs to a separate controller.
     this.paused = false;
+    this.setPace(pace);
+    this.clearShotBuffer();
     this.movementMode = movementMode === 'manual' ? 'manual' : 'auto';
     this.movement = { x: 0, z: 0 };
     this.elapsed = 0;
@@ -73,10 +77,13 @@ export class TennisGame {
     this.ball = { x: 0, y: 1, z: 0, vx: 0, vy: 0, vz: 0, visible: true };
     this.preparePoint();
   }
+  setPace(pace) { this.pace = Object.hasOwn(PACES, pace) ? pace : 'standard'; this.clearShotBuffer(); }
+  clearShotBuffer() { this.shotBuffer = 0; }
   event(type, detail = {}) { this.onEvent({ type, ...detail }); }
   message(text, time = 1) { this.feedback = text; this.feedbackTime = time; }
   preparePoint() {
     if (this.score.winner !== null) return;
+    this.clearShotBuffer();
     this.phase = 'serve-ready';
     this.phaseTime = 0;
     this.rallyCount = 0;
@@ -98,6 +105,7 @@ export class TennisGame {
   }
   setAim(x, depth = this.aim.depth) { this.aim.x = clamp(x, -1, 1); this.aim.depth = clamp(depth, 0, 1); }
   setMovementMode(mode) {
+    this.clearShotBuffer();
     this.movementMode = mode === 'manual' ? 'manual' : 'auto';
     this.setMovement(0, 0);
   }
@@ -133,6 +141,11 @@ export class TennisGame {
       this.returnShot(0, quality);
       this.message(quality > .78 ? 'NICE SHOT' : 'GOOD RETURN', .65);
     } else if (this.incoming) {
+      const p = this.players[0];
+      const close = this.movementMode === 'auto' ? this.ball.z > 7.2 && this.ball.z < 8.4 : Math.hypot(this.ball.x - p.x, this.ball.z - p.z) < 2.8;
+      if (this.bounces === 1 && close && this.ball.y > .1) {
+        this.shotBuffer = SHOT_BUFFER; this.message('打球準備！', SHOT_BUFFER); return;
+      }
       this.message(this.movementMode === 'manual' ? 'ボールの近くへ移動しよう' : this.ball.z < 8.4 ? 'まだ早い！ 合図を待とう' : 'ボールが届く場所で打とう', .55);
     }
   }
@@ -146,7 +159,7 @@ export class TennisGame {
     this.launch(player, from, { x: targetX, z: direction * 4.8 }, 1.24, true);
     this.players[player].swing = 1;
     this.message(player === 0 && quality > .85 ? 'NICE SERVE' : '', .6);
-    this.event('hit', { player, serve: true });
+    this.event('hit', { player, serve: true, quality, position: { ...from } });
   }
   launch(player, from, target, flightTime, serve = false) {
     Object.assign(this.ball, from, {
@@ -155,6 +168,7 @@ export class TennisGame {
       vy: (BALL_RADIUS - from.y + .5 * GRAVITY * flightTime ** 2) / flightTime,
       visible: true,
     });
+    this.clearShotBuffer();
     this.lastHitter = player;
     this.receiver = 1 - player;
     this.phase = 'rally';
@@ -176,9 +190,10 @@ export class TennisGame {
     this.launch(player, from, { x: targetX, z: direction * depth }, player === 0 ? 1.28 - quality * .18 : 1.32);
     this.rallyCount++;
     this.players[player].swing = 1;
-    this.event('hit', { player, quality });
+    this.event('hit', { player, quality, position: { ...from } });
   }
   serveFault(reason) {
+    this.clearShotBuffer();
     this.faults++;
     if (this.faults >= 2) { this.winPoint(1 - this.score.server, 'DOUBLE FAULT'); return; }
     this.phase = 'fault'; this.phaseTime = 0; this.ball.visible = false;
@@ -187,6 +202,7 @@ export class TennisGame {
   }
   winPoint(player, reason) {
     if (this.phase === 'point-over' || this.phase === 'finished') return;
+    this.clearShotBuffer();
     const result = this.score.award(player);
     this.phase = result.match ? 'finished' : 'point-over';
     this.phaseTime = 0;
@@ -222,12 +238,13 @@ export class TennisGame {
   }
   update(dt) {
     if (this.paused || this.phase === 'finished') return;
-    dt = Math.min(dt, .1);
+    dt = Math.min(dt, .1) * PACES[this.pace];
     const count = Math.ceil(dt / .008);
     for (let step = 0; step < count; step++) this.step(dt / count);
   }
   step(dt) {
     if (this.phase === 'finished') return;
+    this.shotBuffer = Math.max(0, this.shotBuffer - dt);
     this.elapsed += dt; this.phaseTime += dt;
     this.feedbackTime -= dt; if (this.feedbackTime <= 0) this.feedback = '';
     this.movePlayers(dt);
@@ -267,9 +284,10 @@ export class TennisGame {
           if (!inBox) { this.serveFault('サービスボックス外'); return; }
         } else if (!inCourt) { this.winPoint(this.receiver, 'OUT'); return; }
         b.y = BALL_RADIUS; b.vy = -b.vy * .76; b.vx *= .88; b.vz *= .88;
-        this.event('bounce');
+        this.event('bounce', { position: { x: b.x, y: .03, z: b.z } });
       } else { this.winPoint(this.lastHitter, '2 BOUNCES'); return; }
     }
+    if (this.shotBuffer > 0 && this.canHit) this.hit();
     if (this.receiver === 1 && this.bounces === 1 && b.z < -9.9 && b.z > -12.7 && b.y > .2 && b.y < 2.6 && Math.abs(b.x - this.players[1].x) < 1.3 && !this.aiWillMiss) {
       this.returnShot(1, .85);
     }

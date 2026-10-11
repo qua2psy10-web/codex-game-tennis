@@ -11,7 +11,7 @@ function box(parent, mat, w, h, d, x, y, z) { return mesh(new THREE.BoxGeometry(
 function sphere(parent, mat, r, x, y, z, segments = 16) { return mesh(new THREE.SphereGeometry(r, segments, 12), mat, parent, x, y, z); }
 function limb(parent, mat, radius, length, x, y, z) { return mesh(new THREE.CapsuleGeometry(radius, length, 4, 10), mat, parent, x, y, z); }
 
-/** Articulated prototype models. Approved portraits are art direction, not rigged models. */
+/** Articulated procedural athletes following the approved portrait silhouettes and outfits. */
 function athlete(gender, rival) {
   const root = new THREE.Group();
   const female = gender === 'female';
@@ -20,7 +20,13 @@ function athlete(gender, rival) {
   const shirt = material(shirtColor), shorts = material(lowerColor), skin = material(rival ? '#bb8567' : '#dba37d'), hair = material('#342c29');
   const white = material('#f2f5f7'), accent = material(female ? rival ? '#9668ab' : '#f3838c' : rival ? '#3e69b2' : '#253e5d');
   const hips = new THREE.Group(); hips.position.y = .97; root.add(hips);
-  const torso = mesh(new THREE.CylinderGeometry(.29, .23, .66, 14), shirt, hips, 0, .34, 0); torso.scale.z = .65;
+  const torso = mesh(new THREE.CylinderGeometry(female ? .26 : rival ? .34 : .3, female ? .2 : .23, .66, 24), shirt, hips, 0, .34, 0); torso.scale.z = .65;
+  const collar = mesh(new THREE.TorusGeometry(.115, .018, 8, 24), accent, hips, 0, .675, 0); collar.rotation.x = Math.PI / 2;
+  for (const side of [-1, 1]) {
+    const shoulder = sphere(hips, shirt, female ? .105 : .14, side * (female ? .235 : .275), .585, 0, 20); shoulder.scale.set(1, .8, .8);
+    box(hips, accent, .018, .45, .018, side * .16, .32, -.195);
+  }
+  box(hips, white, .068, .035, .014, -.14, .48, -.198);
   box(hips, accent, .04, .55, .15, .27, .36, 0);
   if (female) {
     const skirt = mesh(new THREE.CylinderGeometry(.26, .38, .37, 14), shorts, hips, 0, -.09, 0); skirt.scale.z = .78;
@@ -28,6 +34,11 @@ function athlete(gender, rival) {
   const head = new THREE.Group(); head.position.set(0, .94, 0); hips.add(head);
   limb(hips, skin, .105, .16, 0, .73, 0);
   const face = sphere(head, skin, .215, 0, 0, 0, 24); face.scale.set(.82, 1.17, .86);
+  for (const side of [-1, 1]) {
+    const ear = sphere(head, skin, .044, side * .18, -.012, .005, 16); ear.scale.set(.55, 1, .65);
+    const brow = box(head, hair, .059, .012, .016, side * .077, .058, -.179);
+    brow.rotation.z = side * (rival ? -.15 : -.05);
+  }
   const scalp = sphere(head, hair, .214, 0, .095, .012, 24); scalp.scale.set(.85, .79, .87);
   for (const x of [-.08, .08]) {
     sphere(head, white, .023, x, .017, -.176, 10);
@@ -36,6 +47,10 @@ function athlete(gender, rival) {
   sphere(head, skin, .037, 0, -.023, -.19);
   box(head, material('#a6715d'), .078, .012, .02, 0, -.09, -.177);
   if (female) {
+    if (rival) for (let i = 0; i < 28; i++) {
+      const angle = i * 2.4, radius = .12 + (i % 3) * .028;
+      sphere(head, hair, .047, Math.cos(angle) * radius, .15 + Math.sin(i * 1.7) * .065, Math.sin(angle) * radius, 12);
+    }
     for (let i = 0; i < (rival ? 20 : 7); i++) {
       const t = i / (rival ? 19 : 6);
       const curl = sphere(head, hair, rival ? .063 : .075, Math.sin(i * 2.3) * (rival ? .085 : .02), .13 - t * .47, .18 + Math.sin(t * 3) * .1);
@@ -49,6 +64,7 @@ function athlete(gender, rival) {
   const arms = [];
   for (const sign of [-1, 1]) {
     const joint = new THREE.Group(); joint.position.set(sign * .32, .61, 0); hips.add(joint);
+    if (!female) { const sleeve = limb(joint, shirt, .105, .11, 0, -.065, 0); sleeve.scale.z = .85; }
     limb(joint, skin, .079, .31, 0, -.19, 0);
     const forearm = limb(joint, skin, .067, .28, 0, -.51, -.04); forearm.rotation.x = -.3;
     limb(joint, white, .073, .055, 0, -.58, -.065);
@@ -76,6 +92,7 @@ function athlete(gender, rival) {
   }
   const stringGeo = new THREE.BufferGeometry(); stringGeo.setAttribute('position', new THREE.Float32BufferAttribute(strings, 3));
   racket.add(new THREE.LineSegments(stringGeo, new THREE.LineBasicMaterial({ color: '#c2cedc', transparent: true, opacity: .8 })));
+  root.userData.head = head;
   root.userData.hips = hips; root.userData.arms = arms;
   root.scale.setScalar(1.13);
   return root;
@@ -107,6 +124,17 @@ export class CourtScene {
     this.ballShadow = mesh(new THREE.CircleGeometry(.2, 24), new THREE.MeshBasicMaterial({ color: '#14263e', transparent: true, opacity: .3, depthWrite: false }), this.scene); this.ballShadow.rotation.x = -Math.PI / 2;
     this.targetRing = mesh(new THREE.RingGeometry(.37, .41, 40), new THREE.MeshBasicMaterial({ color: '#d8f477', side: THREE.DoubleSide, transparent: true, opacity: .7 }), this.scene); this.targetRing.rotation.x = -Math.PI / 2;
     this.hitRing = mesh(new THREE.RingGeometry(.61, .69, 40), new THREE.MeshBasicMaterial({ color: '#d8f477', side: THREE.DoubleSide, transparent: true, opacity: .8 }), this.scene); this.hitRing.rotation.x = -Math.PI / 2;
+    this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.effects = Array.from({ length: 5 }, () => {
+      const object = mesh(new THREE.RingGeometry(.15, .2, 24), new THREE.MeshBasicMaterial({ color: '#e5ff91', transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }), this.scene);
+      object.rotation.x = -Math.PI / 2; object.visible = false;
+      return { object, born: -10, duration: .35 };
+    });
+    this.trail = Array.from({ length: 8 }, () => {
+      const dot = sphere(this.scene, new THREE.MeshBasicMaterial({ color: '#efffa5', transparent: true, opacity: .2, depthWrite: false }), .065, 0, 0, 0, 8);
+      dot.castShadow = false; dot.visible = false; return dot;
+    });
+    this.trailPoints = []; this.trailTime = -1;
     this.people = [];
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container); this.resize();
   }
@@ -195,11 +223,26 @@ export class CourtScene {
       this.scene.add(instances);
     }
   }
+  handleEvent(event, time) {
+    if (['ready', 'point', 'finished', 'fault'].includes(event.type)) {
+      this.trailPoints = []; this.trailTime = -1;
+      this.effects.forEach(effect => { effect.object.visible = false; effect.born = -10; });
+    }
+    if (!['hit', 'bounce'].includes(event.type) || !event.position || this.reducedMotion) return;
+    if (event.type === 'hit') this.trailPoints = [];
+    const effect = this.effects.find(e => time - e.born > e.duration) ?? this.effects[0];
+    effect.born = time; effect.duration = event.type === 'bounce' ? .4 : .22;
+    effect.object.position.set(event.position.x, event.type === 'bounce' ? .035 : event.position.y, event.position.z);
+    effect.object.rotation.x = event.type === 'bounce' ? -Math.PI / 2 : 0;
+    effect.object.material.color.set(event.type === 'bounce' ? '#ffffff' : event.quality > .78 ? '#e5ff91' : '#b8e5ff');
+  }
   setGender(gender) {
     for (const person of this.people) {
       this.scene.remove(person);
       person.traverse(object => { object.geometry?.dispose(); if (object.material) (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => m.dispose()); });
     }
+    this.trailPoints = []; this.trailTime = -1;
+    this.effects.forEach(e => { e.born = -10; e.object.visible = false; });
     this.people = [athlete(gender, false), athlete(gender, true)];
     this.people[1].rotation.y = Math.PI;
     this.people.forEach(p => this.scene.add(p));
@@ -216,11 +259,19 @@ export class CourtScene {
   render(game) {
     for (let i = 0; i < this.people.length; i++) {
       const model = this.people[i], state = game.players[i];
-      model.position.set(state.x, 0, state.z);
+      const celebrating = ['point-over', 'finished'].includes(game.phase);
+      const won = celebrating && game.pointWinner === i;
+      const gesture = celebrating ? (game.phase === 'finished' ? 1 : Math.sin(Math.min(game.phaseTime / .7, 1) * Math.PI / 2)) : 0;
+      model.position.set(state.x, won ? Math.sin(game.phaseTime * 8) * .04 * gesture : 0, state.z);
       const swing = Math.sin(state.swing * Math.PI);
       model.userData.arms[0].rotation.x = -.25 - swing * 1.8;
       model.userData.arms[0].rotation.z = -.2 - swing * .85;
       model.userData.arms[1].rotation.x = -.25 + swing * .4;
+      model.userData.arms[1].rotation.x -= won ? gesture * 2.3 : 0;
+      model.userData.arms[1].rotation.z = won ? gesture * .35 : 0;
+      model.userData.head.rotation.x = celebrating && !won ? gesture * .22 : 0;
+      model.userData.hips.rotation.y = swing * -.45;
+      model.userData.hips.rotation.x = state.moving ? .075 : 0;
       model.userData.hips.rotation.z = state.moving * .04;
       for (const leg of model.userData.legs) leg.rotation.x = state.moving ? Math.sin(game.elapsed * 13 + leg.userData.side * 1.6) * .38 : .07;
     }
@@ -228,6 +279,20 @@ export class CourtScene {
     this.ball.scale.setScalar(this.container.clientWidth < 750 ? 1.35 : 1);
     this.ball.visible = b.visible; this.ball.position.set(b.x, Math.max(b.y, .13), b.z);
     this.ball.rotation.x = game.elapsed * 5; this.ball.rotation.z = game.elapsed * 2;
+    if (game.phase === 'rally' && b.visible && !this.reducedMotion && game.elapsed - this.trailTime >= .025) {
+      this.trailPoints.unshift(new THREE.Vector3(b.x, b.y, b.z));
+      this.trailPoints.length = Math.min(this.trailPoints.length, this.trail.length);
+      this.trailTime = game.elapsed;
+    }
+    this.trail.forEach((dot, i) => {
+      dot.visible = game.phase === 'rally' && b.visible && !this.reducedMotion && !!this.trailPoints[i];
+      if (dot.visible) { dot.position.copy(this.trailPoints[i]); dot.material.opacity = .25 * (1 - i / this.trail.length); dot.scale.setScalar(1 - i / (this.trail.length + 2)); }
+    });
+    for (const effect of this.effects) {
+      const age = (game.elapsed - effect.born) / effect.duration;
+      effect.object.visible = age >= 0 && age < 1 && !this.reducedMotion;
+      if (effect.object.visible) { effect.object.scale.setScalar(1 + age * 3); effect.object.material.opacity = (1 - age) * .7; }
+    }
     this.ballShadow.visible = b.visible; this.ballShadow.position.set(b.x, .025, b.z); this.ballShadow.scale.setScalar(1 + Math.max(0, b.y) * .08);
     this.ballShadow.material.opacity = .35 / (1 + b.y * .35);
     this.hitRing.visible = game.canHit;

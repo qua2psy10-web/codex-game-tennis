@@ -49,3 +49,8 @@
 .mobile-controls button{border:1px solid #ffffff70;background:#14263ee8;border-radius:7px;color:#fff;font-family:inherit;touch-action:none;user-select:none}
 @media(pointer:coarse) and (min-width:751px) and (max-height:600px){.mobile-controls .touch-aim button{min-height:40px}}
 .players{align-self:start}.player-option img{flex:none}
+
+.pace-choice{margin:20px 0}.pace-choice label{flex:1}.feedback-pop{animation:feedback-pop .28s ease-out}@keyframes feedback-pop{from{opacity:.3;transform:translateX(-50%) scale(.85)}to{opacity:1;transform:translateX(-50%) scale(1)}}@media(prefers-reduced-motion:reduce){.feedback-pop{animation:none}}
+.pace-choice{grid-template-columns:repeat(3,1fr)}
+dialog{max-height:calc(100dvh - 32px);overflow-y:auto}
+@media(max-height:500px) and (orientation:landscape){#pause-dialog{padding:18px 24px}#pause-dialog h2{font-size:21px;margin-bottom:8px}#pause-dialog p{margin:8px 0}.pause-movement,.pace-choice{margin:12px 0}.movement-choice legend{margin-bottom:5px}#pause-dialog .movement-choice label span{padding:8px}#pause-dialog .primary,#pause-dialog .secondary{margin-top:8px;padding:10px;min-height:40px}}

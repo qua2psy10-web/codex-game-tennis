@@ -135,3 +135,30 @@ test('switching movement modes and pausing clears or freezes movement without re
   game.launch(1, { x: 0, y: 2, z: -10 }, { x: 0, z: 7.5 }, 1.3); game.setMovement(-1, -1); game.paused = true;
   const before = { ...game.players[0] }; tick(game, 1); assert.deepEqual(game.players[0], before);
 });
+
+test('a slightly early rally input is buffered once, while expired inputs never fire', () => {
+  const game = new TennisGame({ random: () => .5 });
+  game.launch(1, { x: 1.7, y: 1, z: -10 }, { x: 1.7, z: 7.5 }, 1.3); game.bounces = 1;
+  Object.assign(game.ball, { x: game.players[0].x, y: 1.2, z: 7.8, vx: 0, vy: 2, vz: 10 });
+  assert.equal(game.canHit, false); game.hit(); assert.ok(game.shotBuffer > 0);
+  tick(game, .09); assert.equal(game.lastHitter, 0); assert.equal(game.rallyCount, 1); assert.equal(game.shotBuffer, 0);
+  const early = new TennisGame(); early.launch(1, { x: 1.7, y: 1, z: -10 }, { x: 1.7, z: 7.5 }, 1.3); early.bounces = 1;
+  Object.assign(early.ball, { x: early.players[0].x, y: 1.5, z: 7.3, vx: 0, vy: 1, vz: 2 });
+  early.hit(); tick(early, .14); assert.equal(early.shotBuffer, 0);
+  tick(early, .45); assert.equal(early.lastHitter, 1); assert.equal(early.rallyCount, 0);
+});
+test('manual shot buffering still requires proximity, and mode changes discard queued input', () => {
+  const game = new TennisGame({ movementMode: 'manual' });
+  game.phase = 'rally'; game.receiver = 0; game.bounces = 1;
+  Object.assign(game.ball, { x: -4, y: 1, z: 4 });
+  game.hit(); assert.equal(game.shotBuffer, 0);
+  Object.assign(game.ball, { x: game.players[0].x, z: game.players[0].z - 2 });
+  game.hit(); assert.ok(game.shotBuffer > 0); game.setMovementMode('auto'); assert.equal(game.shotBuffer, 0);
+});
+test('pace changes simulation time without changing score and pause still freezes it', () => {
+  const relaxed = new TennisGame({ pace: 'relaxed' }), brisk = new TennisGame({ pace: 'brisk' });
+  relaxed.update(.05); brisk.update(.05); assert.ok(brisk.elapsed > relaxed.elapsed);
+  relaxed.score.award(0); relaxed.setPace('brisk'); assert.deepEqual(relaxed.score.points, [1, 0]);
+  relaxed.paused = true; const time = relaxed.elapsed; relaxed.update(.05); assert.equal(relaxed.elapsed, time);
+  relaxed.setPace('unknown'); assert.equal(relaxed.pace, 'standard');
+});
