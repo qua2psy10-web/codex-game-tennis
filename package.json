@@ -5,6 +5,6 @@
   "scripts": {
     "start": "python3 -m http.server 8000 --bind 0.0.0.0",
     "test": "node --test tennis/tests/*.test.js",
-    "check": "node --check tennis/main.js && node --check tennis/game.js && node --check tennis/scene.js && node --check tennis/controls.js"
+    "check": "node --check tennis/main.js && node --check tennis/game.js && node --check tennis/scene.js && node --check tennis/controls.js && node --check tennis/athletes.js && node --check tennis/athlete-fallback.js && node --check tennis/character-viewer.js"
   }
 }

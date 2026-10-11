@@ -1,11 +1,15 @@
 import { TennisGame } from './game.js';
 import { CourtScene } from './scene.js';
 import { GameControls } from './controls.js';
+import { CharacterViewer } from './character-viewer.js';
+import { ATHLETES } from './athletes.js';
 
 const $ = id => document.getElementById(id);
 let gender = 'male';
 let movementMode = 'auto';
 let pace = 'standard';
+let viewer = null;
+let starting = false;
 let game = null;
 let scene = null;
 let currentScreen = 'selection';
@@ -78,17 +82,27 @@ function handleEvent(event) {
   }
 }
 function closeDialogs() { dialogs.forEach(dialog => { if (dialog.open) dialog.close(); }); }
-function startMatch() {
-  closeDialogs(); resetInput(); unlockSound();
+async function startMatch() {
+  if (starting) return;
+  starting = true;
+  const matchGender = gender;
+  const startLabel = $('start-button').innerHTML;
+  for (const button of document.querySelectorAll('[data-gender],#start-button,#rematch-button,#view-character-button')) button.disabled = true;
+  $('start-button').textContent = '選手を準備中…';
+  closeDialogs(); viewer?.close(); resetInput(); unlockSound();
+  if (game) game.paused = true;
   $('selection').hidden = true; $('match').hidden = false; $('pause-button').hidden = false;
-  currentScreen = 'match';
+  currentScreen = 'loading';
+  $('status').textContent = '選手を準備しています…'; $('hint').textContent = 'まもなくコートに入ります';
   try {
     scene ??= new CourtScene($('court'), () => {
       pauseGame();
       $('pause-dialog').querySelector('p').textContent = '3D描画が停止しました。ページを再読み込みしてください。';
     });
-    scene.setGender(gender); scene.resize();
+    const loaded = await scene.setGender(matchGender); scene.resize();
+    currentScreen = 'match';
     game = new TennisGame({ onEvent: handleEvent, movementMode, pace });
+    if (!loaded) game.message('モデルを読み込めず、試作モデルで開始しました', 4);
     updateUI();
     // Move focus away from the start button: Space now belongs to the game.
     document.activeElement?.blur();
@@ -98,6 +112,9 @@ function startMatch() {
     const message = document.createElement('p'); message.className = 'webgl-error'; message.setAttribute('role', 'alert');
     message.textContent = '3D描画を開始できませんでした。WebGL対応ブラウザで、ハードウェアアクセラレーションを有効にしてください。';
     document.querySelector('.webgl-error')?.remove(); document.querySelector('.selection-heading').append(message);
+  } finally {
+    starting = false; $('start-button').innerHTML = startLabel;
+    for (const button of document.querySelectorAll('[data-gender],#start-button,#rematch-button,#view-character-button')) button.disabled = false;
   }
 }
 function backToSelection() {
@@ -173,6 +190,33 @@ function updateUI() {
   $('status').style.color = game.canHit ? '#527a15' : '';
 }
 
+function selectCharacter(key) {
+  const info = ATHLETES[key];
+  $('character-reference').src = `tennis/assets/${key}.png`;
+  $('character-reference').alt = `${info.name}の参考画像`;
+  document.querySelectorAll('[data-character]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.character === key)));
+  document.querySelectorAll('[data-pose]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pose === 'idle')));
+  return key;
+}
+$('view-character-button').addEventListener('click', () => {
+  const key = selectCharacter(`${gender}-player`);
+  $('character-dialog').showModal();
+  try {
+    viewer ??= new CharacterViewer($('character-canvas'), $('character-status'));
+    $('character-zoom').value = '1'; viewer.setZoom(1); viewer.open(key);
+  } catch (error) { $('character-status').textContent = '3D表示を開始できませんでした。WebGL対応ブラウザで開いてください。'; }
+});
+$('character-dialog').addEventListener('close', () => viewer?.close());
+$('close-character').addEventListener('click', () => $('character-dialog').close());
+document.querySelectorAll('[data-character]').forEach(button => button.addEventListener('click', () => viewer?.show(selectCharacter(button.dataset.character))));
+document.querySelectorAll('[data-pose]').forEach(button => button.addEventListener('click', () => {
+  viewer?.setPose(button.dataset.pose);
+  document.querySelectorAll('[data-pose]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
+}));
+$('character-zoom').addEventListener('input', event => viewer?.setZoom(Number(event.target.value)));
+$('rotate-left').addEventListener('click', () => viewer?.rotate(-1));
+$('rotate-right').addEventListener('click', () => viewer?.rotate(1));
+
 document.querySelectorAll('[data-gender]').forEach(button => button.addEventListener('click', () => selectPlayer(button.dataset.gender)));
 $('start-button').addEventListener('click', startMatch);
 $('help-button').addEventListener('click', showHelp);
@@ -187,7 +231,8 @@ $('confirm-quit').addEventListener('click', backToSelection);
 document.querySelectorAll('input[name="movement"],input[name="pause-movement"]').forEach(radio => radio.addEventListener('change', () => setMovementMode(radio.value)));
 for (const dialog of dialogs) dialog.addEventListener('cancel', event => {
   event.preventDefault();
-  if (dialog === $('help-dialog')) closeHelp();
+  if (dialog === $('character-dialog')) dialog.close();
+  else if (dialog === $('help-dialog')) closeHelp();
   else if (dialog === $('pause-dialog')) resumeGame();
   else if (dialog === $('quit-dialog')) { dialog.close(); $('pause-dialog').showModal(); }
 });
