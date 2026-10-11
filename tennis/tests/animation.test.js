@@ -92,3 +92,24 @@ for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']
     }
   });
 }
+
+for (const key of ['male-player', 'male-rival', 'female-player', 'female-rival']) {
+  test(`${key}: running swings opposite arms, bends both knees and leans forward`, () => {
+    const model = skeleton(key);
+    const kneeAngle = side => {
+      const thigh = position(model, `Thigh_${side}`), knee = position(model, `Calf_${side}`), ankle = position(model, `Foot_${side}`);
+      return knee.clone().sub(thigh).angleTo(ankle.clone().sub(knee));
+    };
+    animateAthlete(model); const idleHead = position(model, 'Head'), idleKnees = ['R', 'L'].map(kneeAngle);
+    const hands = [];
+    for (const time of [Math.PI / 24, Math.PI / 8]) {
+      animateAthlete(model, { moving: 1, time });
+      hands.push(['R', 'L'].map(side => position(model, `Hand_${side}`).z));
+      for (const [i, side] of ['R', 'L'].entries()) assert.ok(kneeAngle(side) > idleKnees[i] + .1, `${side} knee flexes during both halves of the stride`);
+      assert.ok(position(model, 'Head').z < idleHead.z - .035, 'upper body leans forward');
+    }
+    assert.ok(hands[0][0] > hands[1][0], 'right arm swings with the opposite leg');
+    assert.ok(hands[0][1] < hands[1][1], 'left arm swings opposite to the right arm');
+    animateAthlete(model); assert.ok(position(model, 'Head').distanceTo(idleHead) < 1e-6, 'stopping resets the running posture');
+  });
+}

@@ -70,10 +70,11 @@ export function fallbackAthlete(gender, rival) {
     sphere(joint, skin, .079, 0, -.7, -.085); arms.push(joint);
     const leg = new THREE.Group(); leg.position.set(sign * .16, -.16, 0); hips.add(leg);
     limb(leg, skin, .097, .32, 0, -.23, 0);
-    limb(leg, skin, .078, .27, 0, -.59, .015);
-    limb(leg, white, .079, .13, 0, -.73, .015);
-    const shoe = box(leg, white, .19, .12, .34, 0, -.82, -.07); shoe.rotation.x = -.03;
-    box(leg, accent, .192, .032, .34, 0, -.872, -.07);
+    const knee = new THREE.Group(); knee.position.set(0, -.43, .015); leg.add(knee); leg.userData.knee = knee;
+    limb(knee, skin, .078, .27, 0, -.16, 0);
+    limb(knee, white, .079, .13, 0, -.30, 0);
+    const shoe = box(knee, white, .19, .12, .34, 0, -.39, -.085); shoe.rotation.x = -.03;
+    box(knee, accent, .192, .032, .34, 0, -.442, -.085);
     leg.userData.side = sign;
     (root.userData.legs ??= []).push(leg);
   }
